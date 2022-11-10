@@ -107,6 +107,7 @@ install_aws_cli
 install_helm
 install_kubectl
 install_yq
+install_shellcheck
 
 cd $PAST_DIR
 
