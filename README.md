@@ -1,6 +1,6 @@
 # workspace-pattern
 
-This is an example workspace with tailscale that minimizes complex logic in places where we don't want it (yaml, dockerfiles) or in places where it's not really meant for it (non build/release related takes as makefiles).
+This is an example workspace with tailscale that minimizes complex logic in places where we don't want it (yaml, dockerfiles) or in places where it's not really meant for it (non build/release related tasks as makefiles).
 
 
 ## Using tmux for systemd like effect (also launch tailscale as ephemeral):
