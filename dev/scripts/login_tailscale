@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -euo pipefail
+
+connect_tailscale() { 
+    TS_USERNAME=$(echo "${GITPOD_GIT_USER_NAME}" | tr " " '-')
+    TS_HOSTNAME="${TS_USERNAME}-${GITPOD_WORKSPACE_ID}"
+    BROWSER=/ide/bin/helpers/browser.sh
+    sudo -E tailscale up --accept-dns --accept-routes --hostname=$TS_HOSTNAME
+}
+
+if /usr/bin/tmux has-session -t tailscaled 2>/dev/null; then
+    echo "Tailscaled Running"
+    connect_tailscale
+else
+    echo "Tailscaled Stopped, Starting"
+    /home/gitpod/scripts/start_tailscaled
+    connect_tailscale
+fi

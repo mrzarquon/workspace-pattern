@@ -1,0 +1,9 @@
+---
+image:
+  file: dev/gitpod.Dockerfile
+  context: dev
+
+tasks:
+  - name: tailscaled
+    command: start_tailscaled
+      

@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# This is where the heavy lifting of installing all the tools is done, outside of the docker file
+
+set -euo pipefail
+
+install_tailscale_repos() {
+    echo "Installing Tailscale repos"
+    curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/focal.gpg -o /usr/share/keyrings/tailscale.gpg
+    curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/focal.list -o /etc/apt/sources.list.d/tailscale.list 
+    echo "Installed Tailscale repos"
+
+}
+
+install_terraform_repos() {
+    echo "Installing Terraform repos"
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor > /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
+    echo "Installed Terraform repos"
+}
+
+install_aws_cli() {
+    echo "Install AWS CLI"
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -qo awscliv2.zip
+    ./aws/install --update
+    if [[ -f /bin/aws ]]; then
+        rm -rf /bin/aws
+    fi
+    echo "Installed AWS CLI: $(/usr/local/bin/aws --version)"
+}
+
+install_kubectl() {
+    echo "Installing kubectl ${KUBEVERS}"
+    curl -fsSLO "https://dl.k8s.io/release/${KUBEVERS}/bin/linux/amd64/kubectl"
+    kubectl_sha=$(curl -fsSL "https://dl.k8s.io/release/${KUBEVERS}/bin/linux/amd64/kubectl.sha256")
+    echo "${kubectl_sha} kubectl" > kubectl.sha256
+    sha256sum --check kubectl.sha256
+    mv kubectl /usr/local/bin/kubectl
+    chmod +x /usr/local/bin/kubectl
+    echo "Installed kubectl $(/usr/local/bin/kubectl version --client -o json | jq -r '.clientVersion.gitVersion')"
+} 
+
+install_helm() {
+    HELM_LATEST=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest | jq -r '.tag_name' )
+    echo "Installing helm ${HELM_LATEST}"
+    HELM_TGZ="helm-${HELM_LATEST}-linux-386.tar.gz"
+    curl -fsSLO "https://get.helm.sh/${HELM_TGZ}"
+    curl -fsSLO "https://get.helm.sh/${HELM_TGZ}.sha256sum"
+    sha256sum --check "${HELM_TGZ}.sha256sum"
+    tar  --extract --strip-components=1 --file="${HELM_TGZ}" linux-386/helm
+    mv helm /usr/local/bin/helm
+    chmod +x /usr/local/bin/helm
+    echo "Installed helm $(/usr/local/bin/helm version --short)"
+}
+
+install_shellcheck() {
+    LATEST=$(curl -fsSL https://api.github.com/repos/koalaman/shellcheck/releases/latest | jq -r '.tag_name' )
+    echo "Installing shellcheck ${LATEST}"
+    TGZ="shellcheck-${LATEST}.linux.x86_64.tar.xz"
+    curl -fsSLO "https://github.com/koalaman/shellcheck/releases/download/${LATEST}/${TGZ}"
+    tar  --extract --strip-components=1 --file="${TGZ}" "shellcheck-${LATEST}/shellcheck"
+    mv shellcheck /usr/local/bin/shellcheck
+    chmod +x /usr/local/bin/shellcheck
+    echo "Installed shellcheck $(/usr/local/bin/shellcheck --version | grep 'version:')"
+}
+
+install_yq() {
+    echo "Install yq"
+    curl -fSsL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 
+    chmod +x /usr/local/bin/yq
+    echo "Install $(/usr/local/bin/yq --version)"
+}
+
+apt_install_packages() {
+    debconf-set-selections <<<'debconf debconf/frontend select Noninteractive'
+    apt-get update
+    apt-get install -yq --no-install-recommends "$@"
+    debconf-set-selections <<<'debconf debconf/frontend select Readline'
+
+    apt-get clean -y
+
+    rm -rf \
+        /var/cache/debconf/* \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/*
+}
+
+
+# Setup repos
+
+install_tailscale_repos
+install_terraform_repos
+
+apt_install_packages tailscale terraform \
+    jq tree mosh iputils-ping tmux
+
+update-alternatives --set ip6tables /usr/sbin/ip6tables-nft
+
+TMPDIR=$(mktemp -d)
+PAST_DIR=$PWD
+
+cd $TMPDIR || false
+
+install_aws_cli
+install_helm
+install_kubectl
+install_yq
+
+cd $PAST_DIR
+
+rm -rf $TMPDIR
+

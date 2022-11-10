@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+DOCKER_BUILDKIT=1
+
+GITSHA=$(git rev-parse --short HEAD)
+
+docker image build --file "${GITPOD_REPO_ROOT}/dev/gitpod.DockerFile" --tag localworkspace:$GITSHA --progress plain "${GITPOD_REPO_ROOT}/dev"
