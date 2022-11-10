@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 FROM gitpod/workspace-base 
 
-ENV TRIGGER_REBUILD=3
+ENV TRIGGER_REBUILD=1
 ENV DOCKER_BUILDKIT=1
 
 ENV KUBEVERS="v1.23.10"
